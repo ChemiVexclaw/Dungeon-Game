@@ -1,8 +1,6 @@
 // Debug settings
 var seeAll = false;
 
-
- // awifjiauwjf
 // Game settings
 var inputCooldown = 200;
 var renderDistance = 15;
