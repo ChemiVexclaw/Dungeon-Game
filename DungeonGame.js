@@ -106,6 +106,7 @@ function render(){
     clearCanvas();
     renderTiles();
     renderPlayer();
+    renderUI();
     renderMinimap();
 }
 
@@ -581,4 +582,11 @@ function renderMinimap(){
             context.fillRect(canvas.width - mapSize + player.position.x * pixelSize, canvas.height - mapSize + player.position.y * pixelSize, pixelSize, pixelSize);
         }
     }
+}
+
+// Render UI
+function renderUI(){
+    context.fillStyle = "#555";
+    context.fillRect(0,0,xOffset,canvas.height);
+    context.fillRect(xOffset + tileSize * ( 2 * renderDistance + 1), 0, canvas.width - (xOffset + tileSize * ( 2 * renderDistance + 1)), canvas.height);
 }
