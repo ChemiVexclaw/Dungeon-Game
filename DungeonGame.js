@@ -559,6 +559,7 @@ function renderMinimap(){
     if(minimapEnabled){
         var mapSize = canvas.width - (xOffset + tileSize * ( 2 * renderDistance + 1));
         var pixelSize = Math.floor(mapSize / (layout.x * (2 * roomMargin + roomMaxSize.x)));
+        var minimapOffset = Math.floor((mapSize - pixelSize * (layout.x * (2 * roomMargin + roomMaxSize.x))) / 2);
         context.fillStyle = "#000";
         context.fillRect(canvas.width - mapSize, canvas.height - mapSize, mapSize, mapSize);
         for(var x = 0; x < layout.x * (roomMaxSize.x + 2 * roomMargin); x++){
@@ -572,14 +573,14 @@ function renderMinimap(){
                         }else if(tiles[x+":"+y].type == "floor"){
                             context.fillStyle = "#ababab";
                         }
-                        context.fillRect(canvas.width - mapSize + x * pixelSize, canvas.height - mapSize + y * pixelSize, pixelSize, pixelSize);
+                        context.fillRect(canvas.width - mapSize + x * pixelSize + minimapOffset, canvas.height - mapSize + y * pixelSize + minimapOffset, pixelSize, pixelSize);
                     }
                 }
             }
         }
         if(seePlayerOnMap){
             context.fillStyle = "#f00";
-            context.fillRect(canvas.width - mapSize + player.position.x * pixelSize, canvas.height - mapSize + player.position.y * pixelSize, pixelSize, pixelSize);
+            context.fillRect(canvas.width - mapSize + player.position.x * pixelSize + minimapOffset , canvas.height - mapSize + player.position.y * pixelSize + minimapOffset, pixelSize, pixelSize);
         }
     }
 }
