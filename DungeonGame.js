@@ -556,9 +556,10 @@ function openDoor(){
 // Renders minimap
 function renderMinimap(){
     if(minimapEnabled){
-        var pixelSize = Math.floor(xOffset / (layout.x * (2 * roomMargin + roomMaxSize.x)));
+        var mapSize = canvas.width - (xOffset + tileSize * ( 2 * renderDistance + 1));
+        var pixelSize = Math.floor(mapSize / (layout.x * (2 * roomMargin + roomMaxSize.x)));
         context.fillStyle = "#000";
-        context.fillRect(canvas.width - xOffset, canvas.height - xOffset, xOffset, xOffset);
+        context.fillRect(canvas.width - mapSize, canvas.height - mapSize, mapSize, mapSize);
         for(var x = 0; x < layout.x * (roomMaxSize.x + 2 * roomMargin); x++){
             for(var y = 0; y < layout.y * (roomMaxSize.y + 2 * roomMargin); y++){
                 if(tiles[x+":"+y] != undefined){
@@ -570,14 +571,14 @@ function renderMinimap(){
                         }else if(tiles[x+":"+y].type == "floor"){
                             context.fillStyle = "#ababab";
                         }
-                        context.fillRect(canvas.width - xOffset + x * pixelSize, canvas.height - xOffset + y * pixelSize, pixelSize, pixelSize);
+                        context.fillRect(canvas.width - mapSize + x * pixelSize, canvas.height - mapSize + y * pixelSize, pixelSize, pixelSize);
                     }
                 }
             }
         }
         if(seePlayerOnMap){
             context.fillStyle = "#f00";
-            context.fillRect(canvas.width - xOffset + player.position.x * pixelSize, canvas.height - xOffset + player.position.y * pixelSize, pixelSize, pixelSize);
+            context.fillRect(canvas.width - mapSize + player.position.x * pixelSize, canvas.height - mapSize + player.position.y * pixelSize, pixelSize, pixelSize);
         }
     }
 }
