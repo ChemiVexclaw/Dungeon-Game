@@ -37,10 +37,11 @@ class Player{
 
 // Class representing game tiles
 class tile{
-    constructor(walkable, seen, type){
+    constructor(walkable, seen, type, transparent){
         this.walkable = walkable;
         this.seen = seen;
         this.type = type;
+        this.transparent = transparent;
     } 
 }
 
@@ -71,8 +72,20 @@ function startUp(){
     generateMap();
     inputTime = Date.now();
     walkTime = inputTime;
+    spawnEnemies(20);
     render();
     gameTick();
+}
+
+// Enemies
+var enemies = [];
+class Enemy{
+    constructor(position, rotation, type, health){
+        this.position = position;
+        this.rotation = rotation;
+        this.type = type;
+        this.health = health;
+    }
 }
 
 // Gets and stores player input
@@ -106,6 +119,7 @@ function render(){
     clearCanvas();
     renderTiles();
     renderPlayer();
+    renderEnemies();
     renderUI();
     renderMinimap();
 }
@@ -137,9 +151,9 @@ function generateMap(){
             for(var x2 = room.position.x; x2 < room.position.x + room.size.x; x2++){
                 for(var y2 = room.position.y; y2 < room.position.y + room.size.y; y2++){
                     if(room == rooms[startingRoom.x][startingRoom.y]){
-                        tiles[x2 + ":" + y2] = new tile(true, true, "floor")
+                        tiles[x2 + ":" + y2] = new tile(true, true, "floor", true)
                     }else{
-                        tiles[x2 + ":" + y2] = new tile(true, false, "floor")
+                        tiles[x2 + ":" + y2] = new tile(true, false, "floor", true)
                     }
                 }
             }
@@ -165,9 +179,9 @@ function generateMap(){
 
     function wall(room, x, y){
         if(room == rooms[startingRoom.x][startingRoom.y]){
-            tiles[x+":"+y] = new tile(false, true, "wall")
+            tiles[x+":"+y] = new tile(false, true, "wall", false)
         }else{
-            tiles[x+":"+y] = new tile(false, false, "wall")
+            tiles[x+":"+y] = new tile(false, false, "wall", false)
         }
     }
 
@@ -236,10 +250,10 @@ function generateMap(){
                         tiles[x+":"+(y - 1)].type = "door";
                     }
                 }else{
-                    tiles[x+":"+y] = new tile(true, false, "floor");
-                    tiles[x+":"+(y - 1)] = new tile(true, false, "floor");
-                    tiles[x+":"+(y - 2)] = new tile(false, false, "wall");
-                    tiles[x+":"+(y + 1)] = new tile(false, false, "wall");
+                    tiles[x+":"+y] = new tile(true, false, "floor", true);
+                    tiles[x+":"+(y - 1)] = new tile(true, false, "floor", true);
+                    tiles[x+":"+(y - 2)] = new tile(false, false, "wall", false);
+                    tiles[x+":"+(y + 1)] = new tile(false, false, "wall", false);
                 }
             }
         }else if(i.start.position.x > i.end.position.x){ // Going left
@@ -251,10 +265,10 @@ function generateMap(){
                         tiles[x+":"+(y - 1)].type = "door";
                     }
                 }else{
-                    tiles[x+":"+y] = new tile(true, false, "floor");
-                    tiles[x+":"+(y - 1)] = new tile(true, false, "floor");
-                    tiles[x+":"+(y - 2)] = new tile(false, false, "wall");
-                    tiles[x+":"+(y + 1)] = new tile(false, false, "wall");
+                    tiles[x+":"+y] = new tile(true, false, "floor", true);
+                    tiles[x+":"+(y - 1)] = new tile(true, false, "floor", true);
+                    tiles[x+":"+(y - 2)] = new tile(false, false, "wall", false);
+                    tiles[x+":"+(y + 1)] = new tile(false, false, "wall", false);
                 }
             }
         }else if(i.start.position.y < i.end.position.y){ // Going down
@@ -266,10 +280,10 @@ function generateMap(){
                         tiles[(x - 1)+":"+y].type = "door";
                     }
                 }else{
-                    tiles[x+":"+y] = new tile(true, false, "floor");
-                    tiles[(x - 1)+":"+y] = new tile(true, false, "floor");
-                    tiles[(x - 2)+":"+y] = new tile(false, false, "wall");
-                    tiles[(x + 1)+":"+y] = new tile(false, false, "wall");
+                    tiles[x+":"+y] = new tile(true, false, "floor", true);
+                    tiles[(x - 1)+":"+y] = new tile(true, false, "floor", true);
+                    tiles[(x - 2)+":"+y] = new tile(false, false, "wall", false);
+                    tiles[(x + 1)+":"+y] = new tile(false, false, "wall", false);
                 }
             }
         }else{ // Going up
@@ -281,10 +295,10 @@ function generateMap(){
                         tiles[(x - 1)+":"+y].type = "door";
                     }
                 }else{
-                    tiles[x+":"+y] = new tile(true, false, "floor");
-                    tiles[(x - 1)+":"+y] = new tile(true, false, "floor");
-                    tiles[(x - 2)+":"+y] = new tile(false, false, "wall");
-                    tiles[(x + 1)+":"+y] = new tile(false, false, "wall");
+                    tiles[x+":"+y] = new tile(true, false, "floor", true);
+                    tiles[(x - 1)+":"+y] = new tile(true, false, "floor", true);
+                    tiles[(x - 2)+":"+y] = new tile(false, false, "wall", false);
+                    tiles[(x + 1)+":"+y] = new tile(false, false, "wall", false);
                 }
             }
         }
@@ -395,7 +409,7 @@ function openDoor(){
         end = new Vector2(player.position.x, player.position.y - 1);
         while(true){
             if(tiles[end.x+":"+end.y].seen && tiles[end.x+":"+end.y].type == "door"){
-                tiles[end.x+":"+end.y] = new tile(true, true, "floor");
+                tiles[end.x+":"+end.y] = new tile(true, true, "floor", true);
             }else if(tiles[end.x+":"+end.y].type == "door" || tiles[end.x+":"+end.y].type == "wall"){
                 tiles[end.x+":"+end.y].seen = true;
                 break;
@@ -410,7 +424,7 @@ function openDoor(){
             for(var y = start.y; y >= end.y; y--){
                 if(tiles[x+":"+y] != undefined){
                     if(tiles[x+":"+y].type == "door" && tiles[x+":"+y].seen){
-                        tiles[x+":"+y] = new tile(true, true, "floor");
+                        tiles[x+":"+y] = new tile(true, true, "floor", true);
                     }else{
                         tiles[x+":"+y].seen = true;
                     }
@@ -423,7 +437,7 @@ function openDoor(){
             for(var y = start.y; y >= end.y; y--){
                 if(tiles[x+":"+y] != undefined){
                     if(tiles[x+":"+y].type == "door" && tiles[x+":"+y].seen){
-                        tiles[x+":"+y] = new tile(true, true, "floor");
+                        tiles[x+":"+y] = new tile(true, true, "floor", true);
                     }else{
                         tiles[x+":"+y].seen = true;
                     }
@@ -435,7 +449,7 @@ function openDoor(){
         end = new Vector2(player.position.x, player.position.y + 1);
         while(true){
             if(tiles[end.x+":"+end.y].seen && tiles[end.x+":"+end.y].type == "door"){
-                tiles[end.x+":"+end.y] = new tile(true, true, "floor");
+                tiles[end.x+":"+end.y] = new tile(true, true, "floor", true);
             }else if(tiles[end.x+":"+end.y].type == "door" || tiles[end.x+":"+end.y].type == "wall"){
                 tiles[end.x+":"+end.y].seen = true;
                 break;
@@ -450,7 +464,7 @@ function openDoor(){
             for(var y = start.y; y <= end.y; y++){
                 if(tiles[x+":"+y] != undefined){
                     if(tiles[x+":"+y].type == "door" && tiles[x+":"+y].seen){
-                        tiles[x+":"+y] = new tile(true, true, "floor");
+                        tiles[x+":"+y] = new tile(true, true, "floor", true);
                     }else{
                         tiles[x+":"+y].seen = true;
                     }
@@ -463,7 +477,7 @@ function openDoor(){
             for(var y = start.y; y <= end.y; y++){
                 if(tiles[x+":"+y] != undefined){
                     if(tiles[x+":"+y].type == "door" && tiles[x+":"+y].seen){
-                        tiles[x+":"+y] = new tile(true, true, "floor");
+                        tiles[x+":"+y] = new tile(true, true, "floor", true);
                     }else{
                         tiles[x+":"+y].seen = true;
                     }
@@ -475,7 +489,7 @@ function openDoor(){
         var end = new Vector2(player.position.x - 1, player.position.y);
         while(true){
             if(tiles[end.x+":"+end.y].seen && tiles[end.x+":"+end.y].type == "door"){
-                tiles[end.x+":"+end.y] = new tile(true, true, "floor");
+                tiles[end.x+":"+end.y] = new tile(true, true, "floor", true);
             }else if(tiles[end.x+":"+end.y].type == "door" || tiles[end.x+":"+end.y].type == "wall"){
                 tiles[end.x+":"+end.y].seen = true;
                 break;
@@ -490,7 +504,7 @@ function openDoor(){
             for(var x = start.x; x >= end.x; x--){
                 if(tiles[x+":"+y] != undefined){
                     if(tiles[x+":"+y].type == "door" && tiles[x+":"+y].seen){
-                        tiles[x+":"+y] = new tile(true, true, "floor");
+                        tiles[x+":"+y] = new tile(true, true, "floor", true);
                     }else{
                         tiles[x+":"+y].seen = true;
                     }
@@ -503,7 +517,7 @@ function openDoor(){
             for(var x = start.x; x >= end.x; x--){
                 if(tiles[x+":"+y] != undefined){
                     if(tiles[x+":"+y].type == "door" && tiles[x+":"+y].seen){
-                        tiles[x+":"+y] = new tile(true, true, "floor");
+                        tiles[x+":"+y] = new tile(true, true, "floor", true);
                     }else{
                         tiles[x+":"+y].seen = true;
                     }
@@ -515,7 +529,7 @@ function openDoor(){
         var end = new Vector2(player.position.x + 1, player.position.y);
         while(true){
             if(tiles[end.x+":"+end.y].seen && tiles[end.x+":"+end.y].type == "door"){
-                tiles[end.x+":"+end.y] = new tile(true, true, "floor");
+                tiles[end.x+":"+end.y] = new tile(true, true, "floor", true);
             }else if(tiles[end.x+":"+end.y].type == "door" || tiles[end.x+":"+end.y].type == "wall"){
                 tiles[end.x+":"+end.y].seen = true;
                 break;
@@ -530,7 +544,7 @@ function openDoor(){
             for(var x = start.x; x <= end.x; x++){
                 if(tiles[x+":"+y] != undefined){
                     if(tiles[x+":"+y].type == "door" && tiles[x+":"+y].seen){
-                        tiles[x+":"+y] = new tile(true, true, "floor");
+                        tiles[x+":"+y] = new tile(true, true, "floor", true);
                     }else{
                         tiles[x+":"+y].seen = true;
                     }
@@ -543,7 +557,7 @@ function openDoor(){
             for(var x = start.x; x <= end.x; x++){
                 if(tiles[x+":"+y] != undefined){
                     if(tiles[x+":"+y].type == "door" && tiles[x+":"+y].seen){
-                        tiles[x+":"+y] = new tile(true, true, "floor");
+                        tiles[x+":"+y] = new tile(true, true, "floor", true);
                     }else{
                         tiles[x+":"+y].seen = true;
                     }
@@ -590,4 +604,115 @@ function renderUI(){
     context.fillStyle = "#555";
     context.fillRect(0,0,xOffset,canvas.height);
     context.fillRect(xOffset + tileSize * ( 2 * renderDistance + 1), 0, canvas.width - (xOffset + tileSize * ( 2 * renderDistance + 1)), canvas.height);
+}
+
+// Spawn enemies
+function spawnEnemies(amount){
+    var mapSize = new Vector2(layout.x * (2 * roomMargin + roomMaxSize.x), layout.y * (2 * roomMargin + roomMaxSize.y));
+    enemies = [];
+    for(var i = 0; i < amount; i++){
+        while(true){
+            var position = new Vector2(rnd(mapSize.x), rnd(mapSize.y));
+            if(tiles[position.x+":"+position.y] != undefined){
+                if(tiles[position.x+":"+position.y].walkable){
+                    enemies.push(new Enemy(position, "up", "zombie", 100));
+                    tiles[position.x+":"+position.y].walkable = false;
+                    break;
+                }
+            }
+        }
+    }
+}
+
+// Render enemies
+function renderEnemies(){
+    if(enemies.length > 0){
+        enemies.forEach(enemy =>{
+            if(tiles[enemy.position.x+":"+enemy.position.y].seen){
+                if(enemy.position.x > player.position.x - renderDistance && enemy.position.x < player.position.x + renderDistance && enemy.position.y > player.position.y - renderDistance && enemy.position.y < player.position.y + renderDistance){
+                    var sprite = new Image();
+                    sprite.src = "Textures/Enemies/" + enemy.type + "/" + enemy.rotation + ".png";
+                    context.drawImage(sprite, xOffset + tileSize * (renderDistance - player.position.x + enemy.position.x), tileSize * (renderDistance - player.position.y + enemy.position.y), tileSize, tileSize);
+                }
+            }
+        })
+    }
+}
+
+// Enemy AI
+function zombieAI(){
+
+}
+
+// Check tiles to be seen
+function seeTiles(position){
+    var mapSize = new Vector2(layout.x * (roomMaxSize.x + 2 * roomMargin), layout.y * (roomMaxSize.y + 2 * roomMargin));
+    var seeable = [];
+    // All up & down
+    for(var a = 0; a < mapSize.x; a++){
+        var target = new Vector2(a, 0);
+        var tile = new Vector2(position.x, position.y);
+        var x = position.x - target.x;
+        var y = position.y - target.y;
+        var ray = Math.sqrt(x * x + y * y);
+        for(var i = 0; i < ray; i++){
+            tile.x -= x / ray;
+            tile.y -= y / ray;
+            if(tiles[Math.ceil(tile.x)+":"+Math.ceil(tile.y)].transparent){
+                if(!seeable.includes(Math.ceil(tile.x)+":"+Math.ceil(tile.y))){
+                    seeable.push(Math.ceil(tile.x)+":"+Math.ceil(tile.y));
+                }
+            }else{break}
+        }
+    }
+    for(var a = 0; a < mapSize.x; a++){
+        var target = new Vector2(a, mapSize.y - 1);
+        var tile = new Vector2(position.x, position.y);
+        var x = position.x - target.x;
+        var y = position.y - target.y;
+        var ray = Math.sqrt(x * x + y * y);
+        for(var i = 0; i < ray; i++){
+            tile.x -= x / ray;
+            tile.y -= y / ray;
+            if(tiles[Math.ceil(tile.x)+":"+Math.ceil(tile.y)].transparent){
+                if(!seeable.includes(Math.ceil(tile.x)+":"+Math.ceil(tile.y))){
+                    seeable.push(Math.ceil(tile.x)+":"+Math.ceil(tile.y));
+                }
+            }else{break}
+        }
+    }
+
+    // Left and right
+    for(var a = 0; a < mapSize.y; a++){
+        var target = new Vector2(0, a);
+        var tile = new Vector2(position.x, position.y);
+        var x = position.x - target.x;
+        var y = position.y - target.y;
+        var ray = Math.sqrt(x * x + y * y);
+        for(var i = 0; i < ray; i++){
+            tile.x -= x / ray;
+            tile.y -= y / ray;
+            if(tiles[Math.ceil(tile.x)+":"+Math.ceil(tile.y)].transparent){
+                if(!seeable.includes(Math.ceil(tile.x)+":"+Math.ceil(tile.y))){
+                    seeable.push(Math.ceil(tile.x)+":"+Math.ceil(tile.y));
+                }
+            }else{break}
+        }
+    }
+    for(var a = 0; a < mapSize.y; a++){
+        var target = new Vector2(mapSize.x - 1, a);
+        var tile = new Vector2(position.x, position.y);
+        var x = position.x - target.x;
+        var y = position.y - target.y;
+        var ray = Math.sqrt(x * x + y * y);
+        for(var i = 0; i < ray; i++){
+            tile.x -= x / ray;
+            tile.y -= y / ray;
+            if(tiles[Math.ceil(tile.x)+":"+Math.ceil(tile.y)].transparent){
+                if(!seeable.includes(Math.ceil(tile.x)+":"+Math.ceil(tile.y))){
+                    seeable.push(Math.ceil(tile.x)+":"+Math.ceil(tile.y));
+                }
+            }else{break}
+        }
+    }
 }
