@@ -386,10 +386,7 @@ function playerInput(){
             }
             inputTime = Date.now();
             gameTick();
-        }
-    }
-    if(Date.now() - inputTime > inputCooldown){
-        if(input["e"] && tileInFront().type == "door"){
+        }else if(input["e"] && tileInFront().type == "door"){
             openDoor();
             inputTime = Date.now();
         }
