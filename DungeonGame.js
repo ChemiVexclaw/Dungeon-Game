@@ -71,10 +71,8 @@ function startUp(){
     calculatePixelSize();
     generateMap();
     inputTime = Date.now();
-    walkTime = inputTime;
     spawnEnemies(20);
-    render();
-    gameTick();
+    Update();
 }
 
 // Enemies
@@ -85,6 +83,8 @@ class Enemy{
         this.rotation = rotation;
         this.type = type;
         this.health = health;
+        this.sees = [];
+        this.target;
     }
 }
 
@@ -325,11 +325,16 @@ function renderTiles(){
     }
 }
 
-// Calls new game tick
-function gameTick(){
-    requestAnimationFrame(gameTick);
+// Update
+function Update(){
+    requestAnimationFrame(Update);
     playerInput();
     render();
+}
+
+// Calls new game tick
+function gameTick(){
+    runAI();
 }
 
 // Renders player
@@ -340,7 +345,7 @@ function renderPlayer(){
 
 // Player actions
 function playerInput(){
-    if(Date.now() - walkTime > inputCooldown){
+    if(Date.now() - inputTime > inputCooldown){
         if((input["w"] || input["arrowup"]) && (player.rotation != "up" || tiles[player.position.x+":"+(player.position.y - 1)].walkable || tiles[player.position.x+":"+(player.position.y - 1)].type == "door")){
             player.rotation = "up";
             if(tiles[player.position.x+":"+(player.position.y - 1)].type == "door"){
@@ -349,7 +354,8 @@ function playerInput(){
             if(tiles[player.position.x+":"+(player.position.y - 1)].walkable){
                 player.position.y--;
             }
-            walkTime = Date.now();
+            inputTime = Date.now();
+            gameTick();
         }else if((input["s"] || input["arrowdown"]) && (player.rotation != "down" || tiles[player.position.x+":"+(player.position.y + 1)].walkable || tiles[player.position.x+":"+(player.position.y + 1)].type == "door")){
             player.rotation = "down";
             if(tiles[player.position.x+":"+(player.position.y + 1)].type == "door"){
@@ -358,7 +364,8 @@ function playerInput(){
             if(tiles[player.position.x+":"+(player.position.y + 1)].walkable){
                 player.position.y++;
             }
-            walkTime = Date.now();
+            inputTime = Date.now();
+            gameTick();
         }else if((input["a"] || input["arrowleft"]) && (player.rotation != "left" || tiles[(player.position.x - 1)+":"+player.position.y].walkable || tiles[(player.position.x - 1)+":"+player.position.y].type == "door")){
             player.rotation = "left";
             if(tiles[(player.position.x - 1)+":"+player.position.y].type == "door"){
@@ -367,7 +374,8 @@ function playerInput(){
             if(tiles[(player.position.x - 1)+":"+player.position.y].walkable){
                 player.position.x--;
             }
-            walkTime = Date.now();
+            inputTime = Date.now();
+            gameTick();
         }else if((input["d"] || input["arrowright"]) && (player.rotation != "right" || tiles[(player.position.x + 1)+":"+player.position.y].walkable || tiles[(player.position.x + 1)+":"+player.position.y].type == "door")){
             player.rotation = "right";
             if(tiles[(player.position.x + 1)+":"+player.position.y].type == "door"){
@@ -376,7 +384,8 @@ function playerInput(){
             if(tiles[(player.position.x + 1)+":"+player.position.y].walkable){
                 player.position.x++;
             }
-            walkTime = Date.now();
+            inputTime = Date.now();
+            gameTick();
         }
     }
     if(Date.now() - inputTime > inputCooldown){
@@ -639,11 +648,6 @@ function renderEnemies(){
     }
 }
 
-// Enemy AI
-function zombieAI(){
-
-}
-
 // Check tiles to be seen
 function seeTiles(position){
     var mapSize = new Vector2(layout.x * (roomMaxSize.x + 2 * roomMargin), layout.y * (roomMaxSize.y + 2 * roomMargin));
@@ -659,8 +663,8 @@ function seeTiles(position){
             tile.x -= x / ray;
             tile.y -= y / ray;
             if(tiles[Math.ceil(tile.x)+":"+Math.ceil(tile.y)].transparent){
-                if(!seeable.includes(Math.ceil(tile.x)+":"+Math.ceil(tile.y))){
-                    seeable.push(Math.ceil(tile.x)+":"+Math.ceil(tile.y));
+                if(!containsVector2(seeable, new Vector2(tile.x, tile.y))){
+                    seeable.push(new Vector2(Math.ceil(tile.x), Math.ceil(tile.y)));
                 }
             }else{break}
         }
@@ -675,13 +679,13 @@ function seeTiles(position){
             tile.x -= x / ray;
             tile.y -= y / ray;
             if(tiles[Math.ceil(tile.x)+":"+Math.ceil(tile.y)].transparent){
-                if(!seeable.includes(Math.ceil(tile.x)+":"+Math.ceil(tile.y))){
-                    seeable.push(Math.ceil(tile.x)+":"+Math.ceil(tile.y));
+                if(!containsVector2(seeable, new Vector2(tile.x, tile.y))){
+                    seeable.push(new Vector2(Math.ceil(tile.x), Math.ceil(tile.y)));
                 }
             }else{break}
         }
     }
-
+    
     // Left and right
     for(var a = 0; a < mapSize.y; a++){
         var target = new Vector2(0, a);
@@ -693,8 +697,8 @@ function seeTiles(position){
             tile.x -= x / ray;
             tile.y -= y / ray;
             if(tiles[Math.ceil(tile.x)+":"+Math.ceil(tile.y)].transparent){
-                if(!seeable.includes(Math.ceil(tile.x)+":"+Math.ceil(tile.y))){
-                    seeable.push(Math.ceil(tile.x)+":"+Math.ceil(tile.y));
+                if(!containsVector2(seeable, new Vector2(tile.x, tile.y))){
+                    seeable.push(new Vector2(Math.ceil(tile.x), Math.ceil(tile.y)));
                 }
             }else{break}
         }
@@ -709,10 +713,48 @@ function seeTiles(position){
             tile.x -= x / ray;
             tile.y -= y / ray;
             if(tiles[Math.ceil(tile.x)+":"+Math.ceil(tile.y)].transparent){
-                if(!seeable.includes(Math.ceil(tile.x)+":"+Math.ceil(tile.y))){
-                    seeable.push(Math.ceil(tile.x)+":"+Math.ceil(tile.y));
+                if(!containsVector2(seeable, new Vector2(tile.x, tile.y))){
+                    seeable.push(new Vector2(Math.ceil(tile.x), Math.ceil(tile.y)));
                 }
             }else{break}
         }
+    }
+    return seeable;
+}
+
+// Checks if list a contains Vector2 identical to b
+function containsVector2(a, b){
+    var c = false;
+    b.x = Math.ceil(b.x);
+    b.y = Math.ceil(b.y);
+    a.forEach(d =>{
+        if(b.x == d.x && b.y == d.y){
+            c = true;
+        }
+    })
+    return c;
+}
+
+// Enemy AI
+function runAI(){
+    enemies.forEach(enemy =>{
+        if(enemy.type == "zombie"){zombieAI(enemy)}
+    })
+}
+
+function zombieAI(enemy){
+    enemy.sees = seeTiles(enemy.position);
+    if(enemy.target != undefined){
+        if(enemy.target.x == enemy.position.x && enemy.target.y == enemy.position.y){
+            if(containsVector2(enemy.sees, player.position)){
+                enemy.target = new Vector2(player.position.x, player.position.y);
+            }else{
+                var i = rnd(enemy.sees.length - 1);
+                enemy.target = new Vector2(enemy.sees[i].x, enemy.sees[i].y);
+            }
+        }
+    }else{
+        var i = rnd(enemy.sees.length - 1);
+        enemy.target = new Vector2(enemy.sees[i].x, enemy.sees[i].y);
     }
 }
