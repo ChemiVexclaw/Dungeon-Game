@@ -32,6 +32,7 @@ class Player{
         this.position;
         this.rotation = rotation;
         this.sprite = sprite;
+        this.health = 100;
     }
 }
 
@@ -85,6 +86,7 @@ class Enemy{
         this.health = health;
         this.sees = [];
         this.target;
+        this.path = [];
     }
 }
 
@@ -303,6 +305,7 @@ function generateMap(){
             }
         }
     })
+    tiles[player.position.x+":"+player.position.y].walkable = !tiles[player.position.x+":"+player.position.y].walkable;
 }
 
 // Clears canvas
@@ -352,7 +355,9 @@ function playerInput(){
                 openDoor();
             }
             if(tiles[player.position.x+":"+(player.position.y - 1)].walkable){
+                tiles[player.position.x+":"+player.position.y].walkable = !tiles[player.position.x+":"+player.position.y].walkable;
                 player.position.y--;
+                tiles[player.position.x+":"+player.position.y].walkable = !tiles[player.position.x+":"+player.position.y].walkable;
             }
             inputTime = Date.now();
             gameTick();
@@ -362,7 +367,9 @@ function playerInput(){
                 openDoor();
             }
             if(tiles[player.position.x+":"+(player.position.y + 1)].walkable){
+                tiles[player.position.x+":"+player.position.y].walkable = !tiles[player.position.x+":"+player.position.y].walkable;
                 player.position.y++;
+                tiles[player.position.x+":"+player.position.y].walkable = !tiles[player.position.x+":"+player.position.y].walkable;
             }
             inputTime = Date.now();
             gameTick();
@@ -372,7 +379,9 @@ function playerInput(){
                 openDoor();
             }
             if(tiles[(player.position.x - 1)+":"+player.position.y].walkable){
+                tiles[player.position.x+":"+player.position.y].walkable = !tiles[player.position.x+":"+player.position.y].walkable;
                 player.position.x--;
+                tiles[player.position.x+":"+player.position.y].walkable = !tiles[player.position.x+":"+player.position.y].walkable;
             }
             inputTime = Date.now();
             gameTick();
@@ -382,7 +391,9 @@ function playerInput(){
                 openDoor();
             }
             if(tiles[(player.position.x + 1)+":"+player.position.y].walkable){
+                tiles[player.position.x+":"+player.position.y].walkable = !tiles[player.position.x+":"+player.position.y].walkable;
                 player.position.x++;
+                tiles[player.position.x+":"+player.position.y].walkable = !tiles[player.position.x+":"+player.position.y].walkable;
             }
             inputTime = Date.now();
             gameTick();
@@ -634,7 +645,7 @@ function spawnEnemies(amount){
 function renderEnemies(){
     if(enemies.length > 0){
         enemies.forEach(enemy =>{
-            if(tiles[enemy.position.x+":"+enemy.position.y].seen){
+            if(tiles[enemy.position.x+":"+enemy.position.y].seen || seeAll){
                 if(enemy.position.x > player.position.x - renderDistance && enemy.position.x < player.position.x + renderDistance && enemy.position.y > player.position.y - renderDistance && enemy.position.y < player.position.y + renderDistance){
                     var sprite = new Image();
                     sprite.src = "Textures/Enemies/" + enemy.type + "/" + enemy.rotation + ".png";
@@ -741,17 +752,67 @@ function runAI(){
 
 function zombieAI(enemy){
     enemy.sees = seeTiles(enemy.position);
-    if(enemy.target != undefined){
+    if(containsVector2(enemy.sees, player.position)){
+        enemy.target = new Vector2(player.position.x, player.position.y);
+        findPath(enemy);
+    }else if(enemy.target != undefined){
         if(enemy.target.x == enemy.position.x && enemy.target.y == enemy.position.y){
-            if(containsVector2(enemy.sees, player.position)){
-                enemy.target = new Vector2(player.position.x, player.position.y);
-            }else{
-                var i = rnd(enemy.sees.length - 1);
-                enemy.target = new Vector2(enemy.sees[i].x, enemy.sees[i].y);
-            }
+            var i = rnd(enemy.sees.length - 1);
+            enemy.target = new Vector2(enemy.sees[i].x, enemy.sees[i].y);
+            findPath(enemy);
         }
     }else{
         var i = rnd(enemy.sees.length - 1);
         enemy.target = new Vector2(enemy.sees[i].x, enemy.sees[i].y);
+        findPath(enemy);
+    }    
+    if(enemy.position.x > enemy.path[0].x){
+        enemy.rotation = "left";
+    }else if(enemy.position.x < enemy.path[0].x){
+        enemy.rotation = "right";
+    }else if(enemy.position.y > enemy.path[0].y){
+        enemy.rotation = "up";
+    }else{
+        enemy.rotation = "down";
+    }
+    if(tiles[enemy.path[0].x+":"+enemy.path[0].y].walkable){
+        tiles[enemy.position.x+":"+enemy.position.y].walkable = true;
+        enemy.position.x = enemy.path[0].x;
+        enemy.position.y = enemy.path[0].y;
+        tiles[enemy.position.x+":"+enemy.position.y].walkable = false;
+        enemy.path.shift();
+    }
+}
+
+// Finds path from object(enemies) to target
+function findPath(object){
+    object.path = [];
+    if(object.target.x < object.position.x && tiles[(object.position.x-1)+":"+object.position.y].walkable){
+        object.path.push(new Vector2(object.position.x - 1, object.position.y));
+    }else if(object.target.x > object.position.x && tiles[(object.position.x+1)+":"+object.position.y].walkable){
+        object.path.push(new Vector2(object.position.x + 1, object.position.y));
+    }else if(object.target.y < object.position.y && tiles[object.position.x+":"+(object.position.y-1)].walkable){
+        object.path.push(new Vector2(object.position.x, object.position.y - 1));
+    }else if(object.target.y > object.position.y){
+        object.path.push(new Vector2(object.position.x, object.position.y + 1));
+    }
+    if(object.path.length != 0){
+        while(object.path[object.path.length-1].x != object.target.x || object.path[object.path.length-1].y != object.target.y){
+            var lastPath = object.path[object.path.length-1];
+            if(object.target.x < lastPath.x && tiles[(lastPath.x-1)+":"+lastPath.y].walkable){
+                object.path.push(new Vector2(lastPath.x - 1, lastPath.y));
+            }else if(object.target.x > lastPath.x && tiles[(lastPath.x+1)+":"+lastPath.y].walkable){
+                object.path.push(new Vector2(lastPath.x + 1, lastPath.y));
+            }else if(object.target.y < lastPath.y && tiles[lastPath.x+":"+(lastPath.y-1)].walkable){
+                object.path.push(new Vector2(lastPath.x, lastPath.y - 1));
+            }else if(object.target.y > lastPath.y){
+                object.path.push(new Vector2(lastPath.x, lastPath.y + 1));
+            }else{
+                object.target.x = object.path[object.path.length-1].x;
+                object.target.y = object.path[object.path.length-1].y;
+            }
+        }
+    }else{
+        object.target = undefined;
     }
 }
