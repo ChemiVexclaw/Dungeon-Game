@@ -6,6 +6,7 @@ var inputCooldown = 200;
 var renderDistance = 15;
 var minimapEnabled = true;
 var seePlayerOnMap = true;
+var seeEnemiesOnMap = true;
 
 // Represents a vector with two values
 class Vector2{
@@ -14,6 +15,12 @@ class Vector2{
         this.y = y;
     }
 }
+
+// Game stats
+var level = 1;
+var maxHealth = 100;
+var maxStamina = 10.0;
+var dead = false;
 
 // Generate random whole number between
 function rnd(in1, in2){
@@ -32,7 +39,11 @@ class Player{
         this.position;
         this.rotation = rotation;
         this.sprite = sprite;
-        this.health = 100;
+        this.health = maxHealth;
+        this.stamina = maxStamina;
+        this.range = 2;
+        this.damage = 25;
+        this.knockback = 2;
     }
 }
 
@@ -59,9 +70,11 @@ var startingRoom;
 // size of tile and offset on x-axis
 var tileSize;
 var xOffset;
+var barWidth = 60;
+var barMargin = 20;
 function calculatePixelSize(){
     tileSize = Math.round(canvas.height / (renderDistance * 2 + 1));
-    xOffset = (canvas.width - canvas.height) / 2;
+    xOffset = new Vector2(3 * barMargin + 2 * barWidth, 3 * barMargin + 2 * barWidth + tileSize * (renderDistance * 2 + 1));
 }
 
 // Startup function
@@ -72,18 +85,19 @@ function startUp(){
     calculatePixelSize();
     generateMap();
     inputTime = Date.now();
-    spawnEnemies(20);
     Update();
 }
 
 // Enemies
 var enemies = [];
 class Enemy{
-    constructor(position, rotation, type, health){
+    constructor(position, rotation, type, health, damage, range){
         this.position = position;
         this.rotation = rotation;
         this.type = type;
         this.health = health;
+        this.damage = damage;
+        this.range = range;
         this.sees = [];
         this.target;
         this.path = [];
@@ -118,12 +132,14 @@ window.onresize = function(ev) {
 
 // Calls all rendering functions
 function render(){
-    clearCanvas();
-    renderTiles();
-    renderPlayer();
-    renderEnemies();
-    renderUI();
-    renderMinimap();
+    if(dead){gameOver()}else{
+        clearCanvas();
+        renderTiles();
+        renderPlayer();
+        renderEnemies();
+        renderUI();
+        renderMinimap();
+    }
 }
 
 // Room generation
@@ -306,6 +322,7 @@ function generateMap(){
         }
     })
     tiles[player.position.x+":"+player.position.y].walkable = !tiles[player.position.x+":"+player.position.y].walkable;
+    spawnEnemies(Math.floor(10 + level / 2));
 }
 
 // Clears canvas
@@ -322,7 +339,7 @@ function renderTiles(){
             }else if(i.seen || seeAll){
                 var sprite = new Image();
                 sprite.src = "Textures/" + i.type + ".png";
-                context.drawImage(sprite, x * tileSize + xOffset, y * tileSize, tileSize, tileSize);
+                context.drawImage(sprite, x * tileSize + xOffset.x, y * tileSize, tileSize, tileSize);
             }
         }
     }
@@ -330,7 +347,11 @@ function renderTiles(){
 
 // Update
 function Update(){
-    requestAnimationFrame(Update);
+    if(player.health <= 0){
+        dead = true;
+    }else{
+        requestAnimationFrame(Update);
+    }
     playerInput();
     render();
 }
@@ -343,7 +364,7 @@ function gameTick(){
 // Renders player
 function renderPlayer(){
     context.fillStyle = "#f00";
-    context.fillRect(renderDistance * tileSize + xOffset, renderDistance * tileSize, tileSize, tileSize);
+    context.fillRect(renderDistance * tileSize + xOffset.x, renderDistance * tileSize, tileSize, tileSize);
 }
 
 // Player actions
@@ -351,54 +372,148 @@ function playerInput(){
     if(Date.now() - inputTime > inputCooldown){
         if((input["w"] || input["arrowup"]) && (player.rotation != "up" || tiles[player.position.x+":"+(player.position.y - 1)].walkable || tiles[player.position.x+":"+(player.position.y - 1)].type == "door")){
             player.rotation = "up";
-            if(tiles[player.position.x+":"+(player.position.y - 1)].type == "door"){
-                openDoor();
+            var i = 1;
+            if(player.stamina >= 1 && input["shift"]){
+                i = 2;
+                player.stamina--;
+            }else if(!input["shift"]){
+                player.stamina += 0.5;
+                if(player.stamina > maxStamina){player.stamina = maxStamina}
             }
-            if(tiles[player.position.x+":"+(player.position.y - 1)].walkable){
-                tiles[player.position.x+":"+player.position.y].walkable = !tiles[player.position.x+":"+player.position.y].walkable;
-                player.position.y--;
-                tiles[player.position.x+":"+player.position.y].walkable = !tiles[player.position.x+":"+player.position.y].walkable;
+            for(var a = 0; a < i; a++){
+                if(tiles[player.position.x+":"+(player.position.y - 1)].type == "door"){
+                    openDoor();
+                }
+                if(tiles[player.position.x+":"+(player.position.y - 1)].walkable){
+                    tiles[player.position.x+":"+player.position.y].walkable = !tiles[player.position.x+":"+player.position.y].walkable;
+                    player.position.y--;
+                    tiles[player.position.x+":"+player.position.y].walkable = !tiles[player.position.x+":"+player.position.y].walkable;
+                }
             }
             inputTime = Date.now();
             gameTick();
         }else if((input["s"] || input["arrowdown"]) && (player.rotation != "down" || tiles[player.position.x+":"+(player.position.y + 1)].walkable || tiles[player.position.x+":"+(player.position.y + 1)].type == "door")){
             player.rotation = "down";
-            if(tiles[player.position.x+":"+(player.position.y + 1)].type == "door"){
-                openDoor();
+            var i = 1;
+            if(player.stamina >= 1 && input["shift"]){
+                i = 2;
+                player.stamina--;
+            }else if(!input["shift"]){
+                player.stamina += 0.5;
+                if(player.stamina > maxStamina){player.stamina = maxStamina}
             }
-            if(tiles[player.position.x+":"+(player.position.y + 1)].walkable){
-                tiles[player.position.x+":"+player.position.y].walkable = !tiles[player.position.x+":"+player.position.y].walkable;
-                player.position.y++;
-                tiles[player.position.x+":"+player.position.y].walkable = !tiles[player.position.x+":"+player.position.y].walkable;
+            for(var a = 0; a < i; a++){
+                if(tiles[player.position.x+":"+(player.position.y + 1)].type == "door"){
+                    openDoor();
+                }
+                if(tiles[player.position.x+":"+(player.position.y + 1)].walkable){
+                    tiles[player.position.x+":"+player.position.y].walkable = !tiles[player.position.x+":"+player.position.y].walkable;
+                    player.position.y++;
+                    tiles[player.position.x+":"+player.position.y].walkable = !tiles[player.position.x+":"+player.position.y].walkable;
+                }
             }
             inputTime = Date.now();
             gameTick();
         }else if((input["a"] || input["arrowleft"]) && (player.rotation != "left" || tiles[(player.position.x - 1)+":"+player.position.y].walkable || tiles[(player.position.x - 1)+":"+player.position.y].type == "door")){
             player.rotation = "left";
-            if(tiles[(player.position.x - 1)+":"+player.position.y].type == "door"){
-                openDoor();
+            var i = 1;
+            if(player.stamina >= 1 && input["shift"]){
+                i = 2;
+                player.stamina--;
+            }else if(!input["shift"]){
+                player.stamina += 0.5;
+                if(player.stamina > maxStamina){player.stamina = maxStamina}
             }
-            if(tiles[(player.position.x - 1)+":"+player.position.y].walkable){
-                tiles[player.position.x+":"+player.position.y].walkable = !tiles[player.position.x+":"+player.position.y].walkable;
-                player.position.x--;
-                tiles[player.position.x+":"+player.position.y].walkable = !tiles[player.position.x+":"+player.position.y].walkable;
+            for(var a = 0; a < i; a++){
+                if(tiles[(player.position.x - 1)+":"+player.position.y].type == "door"){
+                    openDoor();
+                }
+                if(tiles[(player.position.x - 1)+":"+player.position.y].walkable){
+                    tiles[player.position.x+":"+player.position.y].walkable = !tiles[player.position.x+":"+player.position.y].walkable;
+                    player.position.x--;
+                    tiles[player.position.x+":"+player.position.y].walkable = !tiles[player.position.x+":"+player.position.y].walkable;
+                }
             }
             inputTime = Date.now();
             gameTick();
         }else if((input["d"] || input["arrowright"]) && (player.rotation != "right" || tiles[(player.position.x + 1)+":"+player.position.y].walkable || tiles[(player.position.x + 1)+":"+player.position.y].type == "door")){
             player.rotation = "right";
-            if(tiles[(player.position.x + 1)+":"+player.position.y].type == "door"){
-                openDoor();
+            var i = 1;
+            if(player.stamina >= 1 && input["shift"]){
+                i = 2;
+                player.stamina--;
+            }else if(!input["shift"]){
+                player.stamina += 0.5;
+                if(player.stamina > maxStamina){player.stamina = maxStamina}
             }
-            if(tiles[(player.position.x + 1)+":"+player.position.y].walkable){
-                tiles[player.position.x+":"+player.position.y].walkable = !tiles[player.position.x+":"+player.position.y].walkable;
-                player.position.x++;
-                tiles[player.position.x+":"+player.position.y].walkable = !tiles[player.position.x+":"+player.position.y].walkable;
+            for(var a = 0; a < i; a++){
+                if(tiles[(player.position.x + 1)+":"+player.position.y].type == "door"){
+                    openDoor();
+                }
+                if(tiles[(player.position.x + 1)+":"+player.position.y].walkable){
+                    tiles[player.position.x+":"+player.position.y].walkable = !tiles[player.position.x+":"+player.position.y].walkable;
+                    player.position.x++;
+                    tiles[player.position.x+":"+player.position.y].walkable = !tiles[player.position.x+":"+player.position.y].walkable;
+                }
             }
             inputTime = Date.now();
             gameTick();
         }else if(input["e"] && tileInFront().type == "door"){
             openDoor();
+            inputTime = Date.now();
+        }else if(input[" "]){
+            enemies.forEach(enemy =>{
+                if(player.rotation == "up"){
+                    if(player.position.y - enemy.position.y <= player.range && player.position.y - enemy.position.y > 0 && player.position.x - enemy.position.x == 0){
+                        enemy.health -= player.damage;
+                        for(var i = 0; i < player.knockback; i++){
+                            if(tiles[enemy.position.x+":"+(enemy.position.y-1)].walkable){
+                                tiles[enemy.position.x+":"+enemy.position.y].walkable = true;
+                                enemy.position.y--;
+                                tiles[enemy.position.x+":"+enemy.position.y].walkable = false;
+                            }
+                        }
+                    }
+                }else if(player.rotation == "down"){
+                    if(enemy.position.y - player.position.y <= player.range && enemy.position.y - player.position.y > 0  && player.position.x - enemy.position.x == 0){
+                        enemy.health -= player.damage;
+                        for(var i = 0; i < player.knockback; i++){
+                            if(tiles[enemy.position.x+":"+(enemy.position.y+1)].walkable){
+                                tiles[enemy.position.x+":"+enemy.position.y].walkable = true;
+                                enemy.position.y++;
+                                tiles[enemy.position.x+":"+enemy.position.y].walkable = false;
+                            }
+                        }
+                    }
+                }else if(player.rotation == "left"){
+                    if(player.position.x - enemy.position.x <= player.range && player.position.x - enemy.position.x > 0 && player.position.y - enemy.position.y == 0){
+                        enemy.health -= player.damage;
+                        for(var i = 0; i < player.knockback; i++){
+                            if(tiles[(enemy.position.x-1)+":"+enemy.position.y].walkable){
+                                tiles[enemy.position.x+":"+enemy.position.y].walkable = true;
+                                enemy.position.x--;
+                                tiles[enemy.position.x+":"+enemy.position.y].walkable = false;
+                            }
+                        }
+                    }
+                }else if(player.rotation == "right"){
+                    if(enemy.position.x - player.position.x <= player.range && enemy.position.x - player.position.x > 0 && player.position.y - enemy.position.y == 0){
+                        enemy.health -= player.damage;
+                        if(tiles[(enemy.position.x+1)+":"+enemy.position.y].walkable){
+                            tiles[enemy.position.x+":"+enemy.position.y].walkable = true;
+                            enemy.position.x++;
+                            tiles[enemy.position.x+":"+enemy.position.y].walkable = false;
+                        }
+                    }
+                }
+                if(enemy.health <= 0){
+                    tiles[enemy.position.x+":"+enemy.position.y].walkable = true;
+                    enemies = enemies.filter(function(item){
+                        return item !== enemy
+                    })
+                }
+            })
+            gameTick();
             inputTime = Date.now();
         }
     }
@@ -588,7 +703,7 @@ function openDoor(){
 // Renders minimap
 function renderMinimap(){
     if(minimapEnabled){
-        var mapSize = canvas.width - (xOffset + tileSize * ( 2 * renderDistance + 1));
+        var mapSize = canvas.width - xOffset.y;
         var pixelSize = Math.floor(mapSize / (layout.x * (2 * roomMargin + roomMaxSize.x)));
         var minimapOffset = Math.floor((mapSize - pixelSize * (layout.x * (2 * roomMargin + roomMaxSize.x))) / 2);
         context.fillStyle = "#000";
@@ -613,14 +728,25 @@ function renderMinimap(){
             context.fillStyle = "#f00";
             context.fillRect(canvas.width - mapSize + player.position.x * pixelSize + minimapOffset , canvas.height - mapSize + player.position.y * pixelSize + minimapOffset, pixelSize, pixelSize);
         }
+        if(seeEnemiesOnMap){
+            enemies.forEach(enemy =>{
+                if(tiles[enemy.position.x+":"+enemy.position.y].seen || seeAll){
+                    if(enemy.type == "zombie"){
+                        context.fillStyle = "#87ab69";
+                        context.fillRect(canvas.width - mapSize + enemy.position.x * pixelSize + minimapOffset , canvas.height - mapSize + enemy.position.y * pixelSize + minimapOffset, pixelSize, pixelSize);
+                    }
+                }
+            })
+        }
     }
 }
 
 // Render UI
 function renderUI(){
     context.fillStyle = "#555";
-    context.fillRect(0,0,xOffset,canvas.height);
-    context.fillRect(xOffset + tileSize * ( 2 * renderDistance + 1), 0, canvas.width - (xOffset + tileSize * ( 2 * renderDistance + 1)), canvas.height);
+    context.fillRect(0,0,xOffset.x,canvas.height);
+    context.fillRect(xOffset.y, 0, canvas.width - xOffset.y, canvas.height);
+    renderPlayerStats();
 }
 
 // Spawn enemies
@@ -632,7 +758,7 @@ function spawnEnemies(amount){
             var position = new Vector2(rnd(mapSize.x), rnd(mapSize.y));
             if(tiles[position.x+":"+position.y] != undefined){
                 if(tiles[position.x+":"+position.y].walkable){
-                    enemies.push(new Enemy(position, "up", "zombie", 100));
+                    enemies.push(new Enemy(position, "up", "zombie", 100, 10, 1));
                     tiles[position.x+":"+position.y].walkable = false;
                     break;
                 }
@@ -649,7 +775,7 @@ function renderEnemies(){
                 if(enemy.position.x > player.position.x - renderDistance && enemy.position.x < player.position.x + renderDistance && enemy.position.y > player.position.y - renderDistance && enemy.position.y < player.position.y + renderDistance){
                     var sprite = new Image();
                     sprite.src = "Textures/Enemies/" + enemy.type + "/" + enemy.rotation + ".png";
-                    context.drawImage(sprite, xOffset + tileSize * (renderDistance - player.position.x + enemy.position.x), tileSize * (renderDistance - player.position.y + enemy.position.y), tileSize, tileSize);
+                    context.drawImage(sprite, xOffset.x + tileSize * (renderDistance - player.position.x + enemy.position.x), tileSize * (renderDistance - player.position.y + enemy.position.y), tileSize, tileSize);
                 }
             }
         })
@@ -765,22 +891,36 @@ function zombieAI(enemy){
         var i = rnd(enemy.sees.length - 1);
         enemy.target = new Vector2(enemy.sees[i].x, enemy.sees[i].y);
         findPath(enemy);
-    }    
-    if(enemy.position.x > enemy.path[0].x){
-        enemy.rotation = "left";
-    }else if(enemy.position.x < enemy.path[0].x){
-        enemy.rotation = "right";
-    }else if(enemy.position.y > enemy.path[0].y){
-        enemy.rotation = "up";
-    }else{
-        enemy.rotation = "down";
+    } 
+    if(enemy.path.length > 0){
+        if(enemy.position.x > enemy.path[0].x){
+            enemy.rotation = "left";
+        }else if(enemy.position.x < enemy.path[0].x){
+            enemy.rotation = "right";
+        }else if(enemy.position.y > enemy.path[0].y){
+            enemy.rotation = "up";
+        }else{
+            enemy.rotation = "down";
+        }
+        if(tiles[enemy.path[0].x+":"+enemy.path[0].y].walkable){
+            tiles[enemy.position.x+":"+enemy.position.y].walkable = true;
+            enemy.position.x = enemy.path[0].x;
+            enemy.position.y = enemy.path[0].y;
+            tiles[enemy.position.x+":"+enemy.position.y].walkable = false;
+            enemy.path.shift();
+        }
     }
-    if(tiles[enemy.path[0].x+":"+enemy.path[0].y].walkable){
-        tiles[enemy.position.x+":"+enemy.position.y].walkable = true;
-        enemy.position.x = enemy.path[0].x;
-        enemy.position.y = enemy.path[0].y;
-        tiles[enemy.position.x+":"+enemy.position.y].walkable = false;
-        enemy.path.shift();
+    if(Math.abs(player.position.x - enemy.position.x) == enemy.range && Math.abs(player.position.y - enemy.position.y) == 0 || Math.abs(player.position.x - enemy.position.x) == 0 && Math.abs(player.position.y - enemy.position.y) == enemy.range){
+        player.health -= enemy.damage;
+        if(player.position.x < enemy.position.x){
+            enemy.rotation = "left";
+        }else if(player.position.x > enemy.position.x){
+            enemy.rotation = "right"
+        }else if(player.position.y < enemy.position.y){
+            enemy.rotation = "up";
+        }else{
+            enemy.rotation = "down";
+        }
     }
 }
 
@@ -815,4 +955,19 @@ function findPath(object){
     }else{
         object.target = undefined;
     }
+}
+
+// Renders player stats
+function renderPlayerStats(){
+    context.fillStyle = "#f00";
+    context.fillRect(barMargin, barMargin, barWidth, (canvas.height - 2 * barMargin) * (player.health / maxHealth));
+    context.fillStyle = "#3cdfff";
+    context.fillRect(2 * barMargin + barWidth, barMargin, barWidth, (canvas.height - 2 * barMargin) * (Math.floor(player.stamina) / maxStamina));
+}
+
+// Game over!
+function gameOver(){
+    context.fillStyle = "#000";
+    context.font = tileSize + "px Georgia";
+    context.fillText("U aliven't", 100, 100)
 }
